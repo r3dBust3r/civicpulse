@@ -18,7 +18,10 @@ import {
   Sliders,
   Edit3,
   RefreshCw,
+  Volume2,
+  Mic,
 } from 'lucide-react';
+import VoiceRecorder from './VoiceRecorder';
 
 const LocationPickerMap = dynamic(() => import('./LocationPickerMap'), { ssr: false });
 
@@ -108,6 +111,10 @@ export default function NewReportModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Voice recording & speech recognition state
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceAudioUrl, setVoiceAudioUrl] = useState<string | null>(null);
+
   const resetForm = () => {
     setImageBase64(null);
     setTitle('');
@@ -123,7 +130,16 @@ export default function NewReportModal({
     setExifCoords(null);
     setGpsStatus('idle');
     setGpsAccuracy(null);
+    setVoiceTranscript('');
+    setVoiceAudioUrl(null);
     setErrorMessage(null);
+  };
+
+  const handleVoiceTranscriptChange = (text: string) => {
+    setVoiceTranscript(text);
+    if (!description || Object.values(MINIMALIST_TEMPLATES).some((t) => t.desc === description)) {
+      setDescription(text);
+    }
   };
 
   // Proximity duplicate check
@@ -208,6 +224,7 @@ export default function NewReportModal({
         },
         body: JSON.stringify({
           image: base64,
+          voice_transcript: voiceTranscript || undefined,
           location: {
             lat: targetCoords.lat,
             lng: targetCoords.lng,
@@ -363,6 +380,8 @@ export default function NewReportModal({
         source: locationSource,
       },
       image_url: imageBase64,
+      voice_transcript: voiceTranscript.trim() || undefined,
+      voice_audio_url: voiceAudioUrl || undefined,
       community_action: communityAction || {
         action_plan: 'Community attention requested. Flag and verify on site.',
         required_tools: ['Work gloves', 'Safety marker'],
@@ -538,6 +557,16 @@ export default function NewReportModal({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe the issue, dimensions, or hazard context..."
                 className="w-full px-3 py-2 bg-white text-xs text-slate-800 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none leading-relaxed"
+              />
+            </div>
+
+            {/* Voice Recording & Live Speech-to-Text */}
+            <div className="pt-2 border-t border-slate-200/60">
+              <VoiceRecorder
+                transcript={voiceTranscript}
+                onTranscriptChange={handleVoiceTranscriptChange}
+                audioUrl={voiceAudioUrl}
+                onAudioChange={(audio) => setVoiceAudioUrl(audio)}
               />
             </div>
           </div>

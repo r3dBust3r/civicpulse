@@ -1,7 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Volume2, Play, Square, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-react';
+import {
+  Mic,
+  MicOff,
+  Volume2,
+  AlertCircle,
+  CheckCircle2,
+  RotateCcw,
+  Upload,
+  Sparkles,
+  FileAudio,
+} from 'lucide-react';
 
 interface VoiceRecorderProps {
   transcript: string;
@@ -23,7 +33,9 @@ export default function VoiceRecorder({
   const [language, setLanguage] = useState<'ar-SA' | 'fr-FR' | 'en-US'>('ar-SA');
   const [recordedAudio, setRecordedAudio] = useState<string | null>(audioUrl || null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
 
+  const fileAudioInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<any>(null);
@@ -41,12 +53,12 @@ export default function VoiceRecorder({
     onAudioChangeRef.current = onAudioChange;
   }, [onAudioChange]);
 
-  // Clean up on unmount
+  // Clean up
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current.getTracks().forEach((t) => t.stop());
       }
       if (recognitionRef.current) {
         try {
@@ -56,71 +68,12 @@ export default function VoiceRecorder({
     };
   }, []);
 
-  const startRecording = async () => {
+  // SYNCHRONOUS RECORDING TRIGGER
+  const startRecording = () => {
     setStatusMessage(null);
     audioChunksRef.current = [];
 
-    // 1. Request microphone access for actual audio capture
-    let stream: MediaStream | null = null;
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        streamRef.current = stream;
-      }
-    } catch (err: any) {
-      console.warn('Microphone stream access error:', err);
-      setStatusMessage('Microphone access blocked. Please allow mic permissions in your browser.');
-    }
-
-    if (stream) {
-      try {
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm')
-          ? 'audio/webm'
-          : MediaRecorder.isTypeSupported('audio/mp4')
-          ? 'audio/mp4'
-          : '';
-
-        const mediaRecorder = mimeType
-          ? new MediaRecorder(stream, { mimeType })
-          : new MediaRecorder(stream);
-
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            audioChunksRef.current.push(event.data);
-          }
-        };
-
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, {
-            type: mediaRecorder.mimeType || 'audio/webm',
-          });
-
-          // Convert audio blob to base64 data URL
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64Audio = reader.result as string;
-            setRecordedAudio(base64Audio);
-            if (onAudioChangeRef.current) {
-              onAudioChangeRef.current(base64Audio);
-            }
-          };
-          reader.readAsDataURL(audioBlob);
-
-          // Stop mic tracks
-          if (streamRef.current) {
-            streamRef.current.getTracks().forEach((track) => track.stop());
-            streamRef.current = null;
-          }
-        };
-
-        mediaRecorderRef.current = mediaRecorder;
-        mediaRecorder.start(200); // 200ms slice
-      } catch (recErr) {
-        console.warn('MediaRecorder error:', recErr);
-      }
-    }
-
-    // 2. Start Speech Recognition for Live Transcription
+    // 1. MUST START SPEECH RECOGNITION SYNCHRONOUSLY IN CLICK HANDLER
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -130,6 +83,10 @@ export default function VoiceRecorder({
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = language;
+
+        recognition.onstart = () => {
+          setStatusMessage('🎙️ Active: Speak into your microphone now...');
+        };
 
         recognition.onresult = (event: any) => {
           let accumulated = '';
@@ -143,13 +100,74 @@ export default function VoiceRecorder({
 
         recognition.onerror = (event: any) => {
           console.warn('SpeechRecognition error:', event.error);
+          if (event.error === 'not-allowed') {
+            setStatusMessage('⚠️ Microphone access was denied. Please allow microphone in your browser settings.');
+            setHasMicPermission(false);
+          } else if (event.error === 'no-speech') {
+            setStatusMessage('No speech heard yet. Try speaking closer to the mic.');
+          }
         };
 
         recognition.start();
         recognitionRef.current = recognition;
-      } catch (srErr) {
-        console.warn('SpeechRecognition start failed:', srErr);
+      } catch (err: any) {
+        console.warn('SpeechRecognition init error:', err);
       }
+    }
+
+    // 2. START MEDIA RECORDER IN PARALLEL
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          streamRef.current = stream;
+          setHasMicPermission(true);
+
+          const mimeType = MediaRecorder.isTypeSupported('audio/webm')
+            ? 'audio/webm'
+            : MediaRecorder.isTypeSupported('audio/mp4')
+            ? 'audio/mp4'
+            : '';
+
+          const mediaRecorder = mimeType
+            ? new MediaRecorder(stream, { mimeType })
+            : new MediaRecorder(stream);
+
+          mediaRecorder.ondataavailable = (event) => {
+            if (event.data && event.data.size > 0) {
+              audioChunksRef.current.push(event.data);
+            }
+          };
+
+          mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunksRef.current, {
+              type: mediaRecorder.mimeType || 'audio/webm',
+            });
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64Audio = reader.result as string;
+              setRecordedAudio(base64Audio);
+              if (onAudioChangeRef.current) {
+                onAudioChangeRef.current(base64Audio);
+              }
+            };
+            reader.readAsDataURL(audioBlob);
+
+            if (streamRef.current) {
+              streamRef.current.getTracks().forEach((t) => t.stop());
+              streamRef.current = null;
+            }
+          };
+
+          mediaRecorderRef.current = mediaRecorder;
+          mediaRecorder.start(200);
+        })
+        .catch((err) => {
+          console.warn('Microphone stream error:', err);
+          setStatusMessage('Microphone permission blocked. Click the lock icon in the address bar to allow mic access.');
+          setHasMicPermission(false);
+        });
     }
 
     setIsRecording(true);
@@ -165,7 +183,6 @@ export default function VoiceRecorder({
       timerRef.current = null;
     }
 
-    // Stop MediaRecorder
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
         mediaRecorderRef.current.stop();
@@ -174,7 +191,6 @@ export default function VoiceRecorder({
       }
     }
 
-    // Stop SpeechRecognition
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -185,6 +201,7 @@ export default function VoiceRecorder({
     }
 
     setIsRecording(false);
+    setStatusMessage('Voice capture complete! Audio attached.');
   };
 
   const toggleRecording = () => {
@@ -195,11 +212,25 @@ export default function VoiceRecorder({
     }
   };
 
-  const handleClearAudio = () => {
-    setRecordedAudio(null);
-    if (onAudioChangeRef.current) {
-      onAudioChangeRef.current(null);
+  const handleAudioFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Audio = reader.result as string;
+        setRecordedAudio(base64Audio);
+        if (onAudioChangeRef.current) {
+          onAudioChangeRef.current(base64Audio);
+        }
+        setStatusMessage(`Audio file attached: ${file.name}`);
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const handleQuickPreset = (presetText: string) => {
+    onTranscriptChange(presetText);
+    setStatusMessage('Moroccan voice note loaded!');
   };
 
   const formatTime = (secs: number) => {
@@ -210,15 +241,30 @@ export default function VoiceRecorder({
 
   return (
     <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 transition-all space-y-3">
+      {/* Hidden Audio File Input */}
+      <input
+        ref={fileAudioInputRef}
+        type="file"
+        accept="audio/*"
+        onChange={handleAudioFileUpload}
+        className="hidden"
+      />
+
       {/* Header & Language Selector */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className={`p-2 rounded-xl ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-sky-100 text-sky-700'}`}>
+          <div
+            className={`p-2 rounded-xl transition-all ${
+              isRecording
+                ? 'bg-red-500 text-white animate-pulse'
+                : 'bg-sky-100 text-sky-700'
+            }`}
+          >
             <Volume2 className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-slate-800">Voice Note & Audio Capture</h4>
-            <p className="text-xs text-slate-500">Record voice note in Darija, French, or English</p>
+            <h4 className="text-sm font-semibold text-slate-800">Voice Note & Speech-to-Text</h4>
+            <p className="text-[11px] text-slate-500">Record live or attach audio note</p>
           </div>
         </div>
 
@@ -228,7 +274,9 @@ export default function VoiceRecorder({
             type="button"
             onClick={() => setLanguage('ar-SA')}
             className={`px-2 py-0.5 rounded font-medium transition-all ${
-              language === 'ar-SA' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              language === 'ar-SA'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
             title="Moroccan Arabic (Darija / Arabic)"
           >
@@ -238,7 +286,9 @@ export default function VoiceRecorder({
             type="button"
             onClick={() => setLanguage('fr-FR')}
             className={`px-2 py-0.5 rounded font-medium transition-all ${
-              language === 'fr-FR' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              language === 'fr-FR'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
             title="French"
           >
@@ -248,7 +298,9 @@ export default function VoiceRecorder({
             type="button"
             onClick={() => setLanguage('en-US')}
             className={`px-2 py-0.5 rounded font-medium transition-all ${
-              language === 'en-US' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              language === 'en-US'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
             title="English"
           >
@@ -257,14 +309,25 @@ export default function VoiceRecorder({
         </div>
       </div>
 
+      {/* Status or Permission Warning */}
       {statusMessage && (
-        <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-1.5">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div
+          className={`p-2.5 rounded-xl text-xs flex items-center gap-1.5 ${
+            hasMicPermission === false
+              ? 'bg-red-50 text-red-700 border border-red-200'
+              : 'bg-sky-50 text-sky-800 border border-sky-200'
+          }`}
+        >
+          {hasMicPermission === false ? (
+            <AlertCircle className="w-4 h-4 shrink-0" />
+          ) : (
+            <Sparkles className="w-4 h-4 shrink-0 text-sky-600" />
+          )}
           <span>{statusMessage}</span>
         </div>
       )}
 
-      {/* Main Record Trigger & Controls */}
+      {/* Record Controls & Input */}
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -275,80 +338,111 @@ export default function VoiceRecorder({
               ? 'bg-red-500 hover:bg-red-600 text-white ring-4 ring-red-200 shadow-red-500/30'
               : 'bg-sky-600 hover:bg-sky-700 text-white shadow-sky-600/30'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+          title={isRecording ? 'Click to Stop Recording' : 'Click to Record Voice'}
         >
           {isRecording ? (
             <>
               <span className="absolute w-full h-full rounded-2xl bg-red-400 opacity-75 pulse-record"></span>
-              <Square className="w-5 h-5 relative z-10 fill-current" />
+              <MicOff className="w-5 h-5 relative z-10" />
             </>
           ) : (
             <Mic className="w-5 h-5" />
           )}
         </button>
 
-        <div className="flex-1">
-          {isRecording ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-red-600 font-semibold">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
-                <span>Recording audio clip...</span>
-              </div>
-              <span className="font-mono text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-lg">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <span>
+              {isRecording ? (
+                <strong className="text-red-600 animate-pulse">● Recording Voice...</strong>
+              ) : (
+                'Spoken Description / Transcript:'
+              )}
+            </span>
+            {isRecording && (
+              <span className="font-mono text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded">
                 ⏱️ {formatTime(recordingSeconds)}
               </span>
-            </div>
-          ) : (
-            <div className="text-xs text-slate-500">
-              {recordedAudio ? (
-                <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Audio Note Captured! Listen below or edit note.
-                </span>
-              ) : (
-                'Tap microphone to record voice note & extract audio'
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Transcript input field */}
           <input
             type="text"
             value={transcript}
             onChange={(e) => onTranscriptChange(e.target.value)}
-            placeholder={
-              language === 'ar-SA'
-                ? 'Matalan: "Kayna wahed l-hofra kbira hna f Agdal..."'
-                : 'Par exemple: "Gros trou sur le trottoir piéton..."'
-            }
-            className="w-full mt-1.5 px-3 py-2 bg-white text-xs text-slate-800 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            placeholder='Speak or type: "Kayna wahed l-hofra kbira hna f Agdal..."'
+            className="w-full px-3 py-2 bg-white text-xs text-slate-800 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
           />
         </div>
+
+        {/* Audio File Upload Button */}
+        <button
+          type="button"
+          onClick={() => fileAudioInputRef.current?.click()}
+          className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 shadow-sm shrink-0 flex flex-col items-center gap-0.5"
+          title="Upload existing audio/voice file (WhatsApp voice note, MP3, WAV, M4A)"
+        >
+          <FileAudio className="w-4 h-4 text-sky-600" />
+          <span className="text-[9px] font-bold">Audio File</span>
+        </button>
       </div>
 
-      {/* Audio Playback Player when recorded */}
+      {/* Recorded Audio Playback */}
       {recordedAudio && (
-        <div className="bg-white p-3 rounded-xl border border-emerald-200 shadow-sm flex items-center justify-between gap-3 animate-in fade-in duration-200">
+        <div className="bg-white p-2.5 rounded-xl border border-emerald-200 shadow-sm flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-              <Volume2 className="w-4 h-4" />
-            </div>
-            <audio
-              src={recordedAudio}
-              controls
-              className="h-8 w-full max-w-xs"
-            />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <audio src={recordedAudio} controls className="h-8 w-full max-w-xs" />
           </div>
 
           <button
             type="button"
-            onClick={handleClearAudio}
-            className="text-xs text-slate-400 hover:text-red-600 p-1 flex items-center gap-1 transition-all"
-            title="Delete & Re-record audio"
+            onClick={() => {
+              setRecordedAudio(null);
+              if (onAudioChangeRef.current) onAudioChangeRef.current(null);
+            }}
+            className="text-xs text-slate-400 hover:text-red-600 p-1 flex items-center gap-1 transition-all shrink-0"
+            title="Delete & Re-record"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Re-record</span>
+            <span>Reset</span>
           </button>
         </div>
       )}
+
+      {/* 1-Tap Quick Moroccan Voice Presets */}
+      <div className="pt-2 border-t border-slate-200/60 flex items-center gap-1.5 flex-wrap">
+        <span className="text-[10px] text-slate-400 font-semibold uppercase">
+          Quick Darija Voice Presets:
+        </span>
+        <button
+          type="button"
+          onClick={() =>
+            handleQuickPreset('Kayna wahed l-hofra kbira hna f triq qdam la gare Agdal f Rabat')
+          }
+          className="text-[10px] font-medium bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 px-2 py-1 rounded-lg border border-slate-200 transition-all"
+        >
+          🕳️ "Hofra f Agdal"
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            handleQuickPreset('Zbel mcheteh w poubelle pleine f Avenue Mohammed V Hassan')
+          }
+          className="text-[10px] font-medium bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 px-2 py-1 rounded-lg border border-slate-200 transition-all"
+        >
+          🗑️ "Zbel f Hassan"
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            handleQuickPreset('Fils électriques à nu très dangereux sur le poteau d’éclairage')
+          }
+          className="text-[10px] font-medium bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 px-2 py-1 rounded-lg border border-slate-200 transition-all"
+        >
+          💡 "Fils électriques"
+        </button>
+      </div>
     </div>
   );
 }

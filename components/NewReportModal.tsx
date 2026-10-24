@@ -102,8 +102,6 @@ export default function NewReportModal({
     setErrorMessage(null);
   };
 
-  if (!isOpen) return null;
-
   // Proximity duplicate check
   const nearbyDuplicate = findNearbyDuplicates(coords.lat, coords.lng, existingReports, 60);
 
@@ -347,6 +345,8 @@ export default function NewReportModal({
     onClose();
     setIsSubmitting(false);
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">

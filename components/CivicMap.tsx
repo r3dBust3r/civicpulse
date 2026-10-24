@@ -8,7 +8,7 @@ interface CivicMapProps {
   reports: CivicReport[];
   selectedReport: CivicReport | null;
   onSelectReport: (report: CivicReport) => void;
-  pinLocation: { lat: number; lng: number } | null;
+  pinLocation?: { lat: number; lng: number } | null;
   onPinChange?: (lat: number, lng: number) => void;
   isPinningMode?: boolean;
 }
@@ -17,7 +17,7 @@ export default function CivicMap({
   reports,
   selectedReport,
   onSelectReport,
-  pinLocation,
+  pinLocation = null,
   onPinChange,
   isPinningMode = false,
 }: CivicMapProps) {
@@ -327,34 +327,34 @@ export default function CivicMap({
   }
 
   return (
-    <div className="relative w-full h-full min-h-[420px] rounded-2xl overflow-hidden shadow-sm border border-slate-200">
-      <div ref={mapContainerRef} className="w-full h-full min-h-[420px]" />
+    <div className="relative w-full h-full">
+      <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Floating Controls */}
-      <div className="absolute top-4 left-4 z-[400] flex flex-col gap-2">
-        {/* Heatmap Toggle */}
-        <button
-          type="button"
-          onClick={() => setShowHeatmap(!showHeatmap)}
-          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl shadow-md backdrop-blur transition-all ${
-            showHeatmap
-              ? 'bg-amber-500 text-white shadow-amber-500/30 ring-2 ring-amber-300'
-              : 'bg-white/95 text-slate-700 hover:bg-white shadow-slate-200'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          {showHeatmap ? 'Heatmap: ON' : 'Hazard Heatmap'}
-        </button>
-
+      {/* Floating Map Utilities (Bottom Right, avoiding center camera and top brand) */}
+      <div className="absolute bottom-6 right-4 z-[400] flex flex-col gap-2">
         {/* Recenter Rabat Button */}
         <button
           type="button"
           onClick={handleRecenterRabat}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white/95 text-slate-700 hover:bg-white rounded-xl shadow-md backdrop-blur"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white/95 text-slate-700 hover:bg-white rounded-xl shadow-lg border border-slate-200/80 backdrop-blur transition-all active:scale-95"
           title="Recenter on Rabat"
         >
           <Navigation className="w-4 h-4 text-sky-600" />
-          Rabat Center
+          <span>Rabat Center</span>
+        </button>
+
+        {/* Heatmap Toggle */}
+        <button
+          type="button"
+          onClick={() => setShowHeatmap(!showHeatmap)}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl shadow-lg border backdrop-blur transition-all active:scale-95 ${
+            showHeatmap
+              ? 'bg-amber-500 border-amber-600 text-white shadow-amber-500/30'
+              : 'bg-white/95 border-slate-200/80 text-slate-700 hover:bg-white'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>{showHeatmap ? 'Heatmap: ON' : 'Hazard Heatmap'}</span>
         </button>
       </div>
 

@@ -1,5 +1,7 @@
 # 🏙️ CivicPulse Rabat — Community-Driven Civic AI (with Google Gemma 4)
 
+Online Demo Link: [https://civicpulse-rabat.duckdns.org/](https://civicpulse-rabat.duckdns.org/)
+
 > **Hacktoberfest Hack Day Rabat x ForgeBots Club UM6P**  
 > Targeting Challenges:  
 > 1. 🏆 **Best Open-Source AI Project** (Agent Skill Open Standard)  

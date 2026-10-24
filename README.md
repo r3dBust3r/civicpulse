@@ -11,6 +11,16 @@
 
 ---
 
+## 👥 The Team
+
+Proudly developed for **Hacktoberfest Hack Day Rabat x ForgeBots Club UM6P**:
+
+- **Hamid Ryahi**
+- **Otmane TALHAOUI**
+- **Mohammed Mokhliss**
+
+---
+
 ## 📌 Executive Summary
 
 **CivicPulse Rabat** is an open-source, 100% community-driven civic platform for Rabat city. Built like an open-source collaboration tool (such as OpenStreetMap or Wikipedia), citizens submit infrastructure issues (potholes, trash accumulation, exposed wires, broken drains) and community members collaboratively identify, fix, and verify resolved problems using **photo proof**.
@@ -51,14 +61,14 @@ The hackathon guidelines explicitly request a note on why Gemma matters:
 
 | Feature | Description |
 | :--- | :--- |
-| **📸 3-Way Geolocation** | 1) Automatic EXIF GPS extraction from photo metadata, 2) Browser Geolocation API, 3) Interactive mini-map pin with reverse geocoding to Rabat street addresses. |
-| **🎙️ Moroccan ASR Voice Input** | Web Speech Recognition with native support for Moroccan Darija (`ar-MA`), French (`fr-FR`), and English (`en-US`). |
-| **🧠 Gemma 4 Multimodal Triage** | Generates title, category, severity (`Critical`, `High`, `Medium`, `Low`), urgency score (1-10), and detailed damage analysis. |
-| **🤝 Community Action Plan** | Replaces bureaucratic tickets with actionable neighborhood plans and volunteer tool checklists. |
-| **📸 Photo Proof Resolution** | To mark an issue as fixed, citizens must provide a photo proof of the repaired street space, creating a side-by-side **Before & After** comparison. |
-| **🛡️ Spatial Duplicate Detection** | Automatically flags active issues within 60m to prevent duplicate tickets and pool community upvotes. |
-| **🗺️ Rabat Teardrop Pinpoints** | Clean custom teardrop markers on Leaflet OpenStreetMap with live Hazard Heatmap and Rabat neighborhood filters (*Agdal, Hassan, Médina, Technopolis UM6P*). |
-| **🔊 Civic Audio Readback** | Web Speech Synthesis reads triage results aloud for accessibility. |
+| **🗺️ Minimalist Full-Screen Map** | Landing page displays an interactive OpenStreetMap canvas of Rabat with auto-rendering teardrop problem pinpoints color-coded by severity. |
+| **📸 Photo-First AI Triage** | Bottom camera button (`📸`) opens an instant photo-first submission form. Gemma 4 auto-generates a title, category, and minimalist description. |
+| **📍 3-Way Location Bar** | 1) **Device GPS** with dual-tier hardware/Wi-Fi lock + 1-tap Rabat presets, 2) **Manual Map Point** with draggable mini-map pin, 3) **Photo EXIF** metadata extraction. |
+| **🎙️ Moroccan Voice Note & ASR** | Live synchronous Web Speech Recognition supporting **Moroccan Darija (`ar-SA`)**, French (`fr-FR`), and English (`en-US`), with parallel `MediaRecorder` audio playback. |
+| **🤝 Community Action Plan** | Replaces bureaucratic tickets with actionable neighborhood volunteer plans, required tools, and safety warnings. |
+| **📸 Photo Proof Resolution** | Citizens mark problems fixed by providing photographic evidence, generating a side-by-side **Before & After** verification view. |
+| **🛡️ Spatial Duplicate Detection** | Automatically flags active issues within 60 meters to prevent duplicate tickets and pool community upvotes. |
+| **🔊 Civic Audio Readback** | Web Speech Synthesis reads triage results aloud for hands-free and accessibility support. |
 
 ---
 
@@ -66,7 +76,7 @@ The hackathon guidelines explicitly request a note on why Gemma matters:
 
 ### 1. Prerequisites
 - Node.js 18+ (tested on Node v20/v22/v26)
-- A free Gemini API key from [Google AI Studio](https://aistudio.google.com/)
+- (Optional) A free Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ### 2. Clone & Install Dependencies
 ```bash
@@ -75,21 +85,19 @@ cd civicpulse-rabat
 npm install
 ```
 
-### 3. Environment Configuration
+### 3. Environment Configuration (Optional)
 Create a `.env.local` file:
 ```env
-# Gemini API Key (for Google Gemma 4 multimodal analysis)
+# Gemini API Key (for Google Gemma 4 live multimodal vision)
 GEMINI_API_KEY=your_gemini_api_key_here
-
-# Optional: OpenRouter key
-OPENROUTER_API_KEY=
 ```
+*(You can also connect your key directly inside the web UI using the **Connect Vision Key** button!)*
 
 ### 4. Run Development Server
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) on your phone or browser.
+Open [http://localhost:3000](http://localhost:3000) on your browser or mobile phone.
 
 ---
 
@@ -98,30 +106,31 @@ Open [http://localhost:3000](http://localhost:3000) on your phone or browser.
 ```
 ├── app/
 │   ├── api/analyze-issue/route.ts  # Gemma 4 Multimodal Agent & Skill Execution
-│   ├── globals.css                 # Tailwind CSS & Leaflet map styles
-│   ├── layout.tsx                  # Root layout & responsive meta tags
-│   └── page.tsx                    # Main Community Dashboard, Map & Feed
+│   ├── globals.css                 # Tailwind CSS & Leaflet map styling
+│   ├── layout.tsx                  # Root layout, app icon & metadata
+│   └── page.tsx                    # Minimalist Full-Screen Map & Controls
 ├── components/
-│   ├── CivicMap.tsx                # Leaflet map with custom teardrop pins & Heatmap
-│   ├── ImageCapture.tsx            # Camera capture & EXIF GPS extractor
+│   ├── CivicMap.tsx                # Leaflet map with custom teardrop pins & Hazard Heatmap
 │   ├── LocationPickerMap.tsx       # Draggable pinpoint mini-map in report wizard
-│   ├── NewReportModal.tsx          # Incident submission wizard & duplicate check
-│   ├── ReportDetailsModal.tsx      # Before & After photo comparison & community plan
-│   ├── ResolveProofModal.tsx       # Take/upload photo proof of fixed problem
-│   └── VoiceRecorder.tsx           # Moroccan ASR voice note component
+│   ├── NewReportModal.tsx          # Incident submission wizard & photo AI triage
+│   ├── ReportDetailsModal.tsx      # Before & After photo comparison & community action plan
+│   ├── ResolveProofModal.tsx       # Citizen photo proof submission for fixed issues
+│   └── VoiceRecorder.tsx           # Moroccan Darija ASR & MediaRecorder audio capture
 ├── lib/
-│   ├── geoUtils.ts                 # Haversine distance & reverse geocoding
-│   └── mockData.ts                 # Seed incidents around Rabat & UM6P Technopolis
+│   ├── geoUtils.ts                 # Haversine distance, deduplication & reverse geocoding
+│   └── mockData.ts                 # Authentic seed incidents around Rabat (Agdal, Hassan, Médina, UM6P)
 ├── skills/                         # Agent Skill Open Standard Directory
 │   ├── community-action-synthesis/SKILL.md
 │   ├── duplicate-detector/SKILL.md
 │   └── visual-hazard-inspection/SKILL.md
 ├── types/                          # Strict TypeScript definitions
-└── README.md
+├── icon.ico                        # Official platform icon
+├── LICENSE                         # MIT License
+└── README.md                       # Documentation & Hackathon Challenge Alignment
 ```
 
 ---
 
 ## 📜 Open Source License
 
-This project is licensed under the [MIT License](LICENSE). Built with pride for **Hacktoberfest Hack Day Rabat x ForgeBots Club UM6P 2026**.
+This project is licensed under the [MIT License](LICENSE). Built with pride by **Hamid Ryahi**, **Otmane TALHAOUI**, and **Mohammed Mokhliss** for **Hacktoberfest Hack Day Rabat x ForgeBots Club UM6P 2026**.

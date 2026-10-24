@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { CivicReport, LocationSource, IssueCategory, IssueSeverity } from '@/types';
 import { reverseGeocode, findNearbyDuplicates } from '@/lib/geoUtils';
@@ -81,8 +81,6 @@ export default function NewReportModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const autoGpsAttemptedRef = useRef(false);
-
   const resetForm = () => {
     setImageBase64(null);
     setTitle('');
@@ -98,7 +96,6 @@ export default function NewReportModal({
     setExifCoords(null);
     setGpsStatus('idle');
     setGpsAccuracy(null);
-    autoGpsAttemptedRef.current = false;
     setErrorMessage(null);
   };
 
@@ -207,7 +204,7 @@ export default function NewReportModal({
   };
 
   // Option 1: Device GPS with Dual-Tier Fallback (High-accuracy -> Standard accuracy)
-  const acquireDeviceGps = useCallback(() => {
+  const acquireDeviceGps = () => {
     setLocationMode('gps');
     setErrorMessage(null);
 
@@ -258,18 +255,12 @@ export default function NewReportModal({
       },
       { enableHighAccuracy: true, timeout: 4000, maximumAge: 30000 }
     );
-  }, []);
+  };
 
-  // Automatically acquire device GPS as soon as modal opens in GPS mode
+  // Automatically acquire device GPS on modal mount
   useEffect(() => {
-    if (isOpen && locationMode === 'gps' && !autoGpsAttemptedRef.current) {
-      autoGpsAttemptedRef.current = true;
-      acquireDeviceGps();
-    }
-    if (!isOpen) {
-      autoGpsAttemptedRef.current = false;
-    }
-  }, [isOpen, locationMode, acquireDeviceGps]);
+    acquireDeviceGps();
+  }, []);
 
   // Option 2: Manual Map Pin
   const handleSelectManual = () => {

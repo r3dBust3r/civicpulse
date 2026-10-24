@@ -146,13 +146,15 @@ export default function Home() {
       </div>
 
       {/* 4. New Report Submission Modal (Photo -> AI Auto-Fill -> 3-way Location -> Submit) */}
-      <NewReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        onSubmitSuccess={handleAddNewReport}
-        existingReports={reports}
-        defaultCoords={{ lat: 34.015, lng: -6.835 }}
-      />
+      {isReportModalOpen && (
+        <NewReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          onSubmitSuccess={handleAddNewReport}
+          existingReports={reports}
+          defaultCoords={{ lat: 34.015, lng: -6.835 }}
+        />
+      )}
 
       {/* 5. Issue Details Modal (Opens when user clicks any pinpoint) */}
       <ReportDetailsModal

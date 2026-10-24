@@ -222,14 +222,34 @@ export default function ReportDetailsModal({
               </div>
             </div>
 
-            {/* Voice transcript if available */}
-            {report.voice_transcript && (
-              <div className="bg-amber-50 border border-amber-200/70 rounded-2xl p-3 text-xs">
-                <div className="flex items-center gap-1.5 text-amber-800 font-semibold mb-1">
-                  <Volume2 className="w-3.5 h-3.5" />
-                  <span>Citizen Voice Memo (Darija / Moroccan ASR)</span>
+            {/* Voice Recording / Memo if available */}
+            {(report.voice_transcript || report.voice_audio_url) && (
+              <div className="bg-amber-50 border border-amber-200/70 rounded-2xl p-3.5 text-xs space-y-2">
+                <div className="flex items-center justify-between text-amber-800 font-semibold">
+                  <div className="flex items-center gap-1.5">
+                    <Volume2 className="w-4 h-4 text-amber-700" />
+                    <span>Citizen Voice Memo & Audio Clip</span>
+                  </div>
+                  {report.voice_audio_url && (
+                    <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-bold">
+                      🎙️ Audio Recorded
+                    </span>
+                  )}
                 </div>
-                <p className="text-amber-900/90 italic">"{report.voice_transcript}"</p>
+
+                {report.voice_audio_url && (
+                  <audio
+                    src={report.voice_audio_url}
+                    controls
+                    className="w-full h-8 mt-1"
+                  />
+                )}
+
+                {report.voice_transcript && (
+                  <p className="text-amber-950 italic pt-1 border-t border-amber-200/60">
+                    "{report.voice_transcript}"
+                  </p>
+                )}
               </div>
             )}
 

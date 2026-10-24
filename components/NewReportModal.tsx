@@ -48,6 +48,7 @@ export default function NewReportModal({
 }: NewReportModalProps) {
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceAudioUrl, setVoiceAudioUrl] = useState<string | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number }>(defaultCoords);
   const [address, setAddress] = useState('Avenue Mohammed V, Rabat');
   const [locationSource, setLocationSource] = useState<LocationSource>('gps');
@@ -159,6 +160,7 @@ export default function NewReportModal({
         },
         image_url: imageBase64,
         voice_transcript: voiceTranscript || undefined,
+        voice_audio_url: voiceAudioUrl || undefined,
         community_action: aiData.community_action || {
           action_plan: 'Community attention requested. Flag and verify on site.',
           required_tools: ['Work gloves', 'Safety marker'],
@@ -246,6 +248,8 @@ export default function NewReportModal({
             <VoiceRecorder
               transcript={voiceTranscript}
               onTranscriptChange={setVoiceTranscript}
+              audioUrl={voiceAudioUrl}
+              onAudioChange={setVoiceAudioUrl}
               disabled={isSubmitting}
             />
           </div>

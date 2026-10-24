@@ -42,6 +42,7 @@ export interface CivicReport {
   image_url: string;
   resolution_proof?: ResolutionProof;
   voice_transcript?: string;
+  voice_audio_url?: string; // Captured voice recording
   community_action: CommunityAction;
   status: ReportStatus;
   upvotes: number;

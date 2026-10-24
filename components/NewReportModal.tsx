@@ -39,6 +39,33 @@ const CATEGORIES: IssueCategory[] = [
   'Vandalism',
 ];
 
+const MINIMALIST_TEMPLATES: Record<IssueCategory, { title: string; desc: string }> = {
+  Pothole: {
+    title: 'Asphalt road pothole',
+    desc: 'Deep pothole in the asphalt roadway creating a hazard for passing vehicles.',
+  },
+  Sanitation: {
+    title: 'Overflowing waste on sidewalk',
+    desc: 'Accumulation of uncollected trash bags and waste overflowing onto the pedestrian walkway.',
+  },
+  Lighting: {
+    title: 'Broken streetlamp with exposed wiring',
+    desc: 'Damaged street lighting post with exposed electrical wiring at the sidewalk base.',
+  },
+  'Water & Drainage': {
+    title: 'Clogged storm drain & water pooling',
+    desc: 'Blocked stormwater drainage grate causing water to pool across the roadway edge.',
+  },
+  'Road Hazard': {
+    title: 'Dislodged sidewalk curb stones',
+    desc: 'Displaced and broken curb stones creating an uneven tripping hazard for pedestrians.',
+  },
+  Vandalism: {
+    title: 'Damaged public street sign',
+    desc: 'Bent municipal directional street sign with compromised legibility.',
+  },
+};
+
 const detectRabatNeighborhood = (addr: string, lat: number, lng: number) => {
   const low = (addr || '').toLowerCase();
   if (low.includes('agdal')) return 'Agdal';
@@ -172,9 +199,13 @@ export default function NewReportModal({
   const runAiTriage = async (base64: string, targetCoords: { lat: number; lng: number }) => {
     setIsAnalyzing(true);
     try {
+      const storedKey = typeof window !== 'undefined' ? localStorage.getItem('civicpulse_gemini_key') || '' : '';
       const response = await fetch('/api/analyze-issue', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(storedKey ? { 'x-gemini-api-key': storedKey } : {}),
+        },
         body: JSON.stringify({
           image: base64,
           location: {
@@ -200,6 +231,22 @@ export default function NewReportModal({
       console.warn('AI Triage error:', err);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleCategoryChange = (newCat: IssueCategory) => {
+    setCategory(newCat);
+    const currentIsDefault =
+      !description ||
+      Object.values(MINIMALIST_TEMPLATES).some((t) => t.desc === description);
+    if (currentIsDefault) {
+      setDescription(MINIMALIST_TEMPLATES[newCat].desc);
+    }
+    const currentTitleIsDefault =
+      !title ||
+      Object.values(MINIMALIST_TEMPLATES).some((t) => t.title === title);
+    if (currentTitleIsDefault) {
+      setTitle(MINIMALIST_TEMPLATES[newCat].title);
     }
   };
 
@@ -469,7 +516,7 @@ export default function NewReportModal({
               </label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as IssueCategory)}
+                onChange={(e) => handleCategoryChange(e.target.value as IssueCategory)}
                 className="w-full px-3 py-2 bg-white text-xs text-slate-900 font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
               >
                 {CATEGORIES.map((cat) => (

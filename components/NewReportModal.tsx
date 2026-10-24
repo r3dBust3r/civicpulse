@@ -531,32 +531,6 @@ export default function NewReportModal({
 
               <button
                 type="button"
-                onClick={acquireDeviceGps}
-                className={`py-2 px-1 rounded-lg transition-all text-center flex flex-col items-center gap-0.5 ${
-                  locationMode === 'gps'
-                    ? 'bg-sky-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Navigation className="w-3.5 h-3.5" />
-                <span>1. Device GPS</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSelectManual}
-                className={`py-2 px-1 rounded-lg transition-all text-center flex flex-col items-center gap-0.5 ${
-                  locationMode === 'manual'
-                    ? 'bg-sky-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <MapPin className="w-3.5 h-3.5" />
-                <span>2. Map Point</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={handleSelectExif}
                 className={`py-2 px-1 rounded-lg transition-all text-center flex flex-col items-center gap-0.5 ${
                   locationMode === 'exif'

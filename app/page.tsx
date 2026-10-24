@@ -39,23 +39,25 @@ export default function Home() {
     setIsKeyModalOpen(false);
   };
 
-  // Load reports from localStorage or initial Rabat mock data
+  // Load reports from localStorage or initial Rabat mock data (ensures all 42 demo data load immediately)
   useEffect(() => {
-    const saved = localStorage.getItem('civicpulse_rabat_reports');
+    const saved = localStorage.getItem('civicpulse_rabat_reports_v42');
     if (saved) {
       try {
-        setReports(JSON.parse(saved));
-      } catch {
-        setReports(INITIAL_REPORTS);
-      }
-    } else {
-      setReports(INITIAL_REPORTS);
+        const parsed = JSON.parse(saved);
+        if (parsed.length >= INITIAL_REPORTS.length) {
+          setReports(parsed);
+          return;
+        }
+      } catch {}
     }
+    setReports(INITIAL_REPORTS);
+    localStorage.setItem('civicpulse_rabat_reports_v42', JSON.stringify(INITIAL_REPORTS));
   }, []);
 
   const saveReports = (newReports: CivicReport[]) => {
     setReports(newReports);
-    localStorage.setItem('civicpulse_rabat_reports', JSON.stringify(newReports));
+    localStorage.setItem('civicpulse_rabat_reports_v42', JSON.stringify(newReports));
   };
 
   const handleAddNewReport = (newReport: CivicReport) => {

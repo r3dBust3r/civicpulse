@@ -411,8 +411,8 @@ export default function NewReportModal({
         {/* Header */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur z-10">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center">
-              <Camera className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center overflow-hidden p-1 shadow-sm">
+              <img src="/icon.ico" alt="CivicPulse Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-800">Submit New Problem</h3>

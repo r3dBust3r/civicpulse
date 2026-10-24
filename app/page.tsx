@@ -121,8 +121,8 @@ export default function Home() {
       {/* 2. Sleek Minimalist Floating Top Header */}
       <div className="absolute top-4 left-4 z-[450] flex items-center gap-2">
         <div className="bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-lg border border-slate-200/80 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-600 to-blue-500 text-white flex items-center justify-center shadow-sm">
-            <MapPin className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-600 to-blue-500 text-white flex items-center justify-center shadow-sm overflow-hidden p-1">
+            <img src="/icon.ico" alt="CivicPulse Logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">

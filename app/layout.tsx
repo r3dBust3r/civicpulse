@@ -2,8 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CivicPulse AI — FixMyStreet with Gemma 4",
-  description: "AI-powered civic issue reporting and municipal dispatch using Google Gemma 4 and the Agent Skill Open Standard.",
+  title: "CivicPulse Rabat — Community-Driven Civic AI (Gemma 4)",
+  description: "100% community-driven civic platform for Rabat city powered by Google Gemma 4 and the Agent Skill Open Standard.",
+  icons: {
+    icon: "/icon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/icon.ico",
+  },
 };
 
 export const viewport: Viewport = {
@@ -22,6 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/icon.ico" sizes="any" />
         <link
           rel="stylesheet"
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"

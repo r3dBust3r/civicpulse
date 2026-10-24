@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { CivicReport, LocationSource, IssueCategory, IssueSeverity } from '@/types';
 import { reverseGeocode, findNearbyDuplicates } from '@/lib/geoUtils';
@@ -17,6 +17,7 @@ import {
   Image as ImageIcon,
   Sliders,
   Edit3,
+  RefreshCw,
 } from 'lucide-react';
 
 const LocationPickerMap = dynamic(() => import('./LocationPickerMap'), { ssr: false });
@@ -74,9 +75,13 @@ export default function NewReportModal({
   const [locationSource, setLocationSource] = useState<LocationSource>('gps');
   const [exifCoords, setExifCoords] = useState<{ lat: number; lng: number } | null>(null);
 
+  const [gpsStatus, setGpsStatus] = useState<'idle' | 'acquiring' | 'locked' | 'failed'>('idle');
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const autoGpsAttemptedRef = useRef(false);
 
   const resetForm = () => {
     setImageBase64(null);
@@ -91,6 +96,9 @@ export default function NewReportModal({
     setAddress('Avenue Mohammed V, Rabat');
     setLocationSource('gps');
     setExifCoords(null);
+    setGpsStatus('idle');
+    setGpsAccuracy(null);
+    autoGpsAttemptedRef.current = false;
     setErrorMessage(null);
   };
 
@@ -200,35 +208,70 @@ export default function NewReportModal({
     }
   };
 
-  // Option 1: Device GPS
-  const handleSelectDeviceGps = () => {
+  // Option 1: Device GPS with Dual-Tier Fallback (High-accuracy -> Standard accuracy)
+  const acquireDeviceGps = useCallback(() => {
     setLocationMode('gps');
-    if (!navigator.geolocation) {
+    setErrorMessage(null);
+
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setGpsStatus('failed');
       setErrorMessage('Device geolocation is not supported by your browser.');
       return;
     }
 
+    setGpsStatus('acquiring');
     setIsLocating(true);
+
+    const onGpsSuccess = async (pos: GeolocationPosition) => {
+      const lat = Number(pos.coords.latitude.toFixed(6));
+      const lng = Number(pos.coords.longitude.toFixed(6));
+      const acc = Math.round(pos.coords.accuracy);
+
+      setCoords({ lat, lng });
+      setGpsAccuracy(acc);
+      setGpsStatus('locked');
+      setLocationSource('gps');
+      setIsLocating(false);
+
+      const addr = await reverseGeocode(lat, lng);
+      setAddress(addr);
+    };
+
+    // Stage 1: High accuracy for devices with hardware GPS
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const newCoords = {
-          lat: Number(pos.coords.latitude.toFixed(6)),
-          lng: Number(pos.coords.longitude.toFixed(6)),
-        };
-        setCoords(newCoords);
-        setLocationSource('gps');
-        const addr = await reverseGeocode(newCoords.lat, newCoords.lng);
-        setAddress(addr);
-        setIsLocating(false);
+      onGpsSuccess,
+      (err1) => {
+        console.warn('High-accuracy GPS fix failed or timed out, retrying with standard network accuracy...', err1.message);
+        // Stage 2: Standard accuracy (WiFi / network cell triangulation for laptops and indoors)
+        navigator.geolocation.getCurrentPosition(
+          onGpsSuccess,
+          (err2) => {
+            console.warn('Standard accuracy GPS failed:', err2.message);
+            setIsLocating(false);
+            setGpsStatus('failed');
+            if (err2.code === 1) {
+              setErrorMessage('Location permission was denied. Please allow location in your browser, or tap Option 2 (Map Point) or a Rabat preset.');
+            } else {
+              setErrorMessage('GPS sensor timed out (indoor/laptop). Tap Option 2 to pin manually or tap a quick Rabat preset below.');
+            }
+          },
+          { enableHighAccuracy: false, timeout: 6000, maximumAge: 300000 }
+        );
       },
-      (err) => {
-        console.warn('GPS error:', err);
-        setIsLocating(false);
-        setErrorMessage('Unable to retrieve device GPS. You can pin manually on the map.');
-      },
-      { timeout: 10000, enableHighAccuracy: true }
+      { enableHighAccuracy: true, timeout: 4000, maximumAge: 30000 }
     );
-  };
+  }, []);
+
+  // Automatically acquire device GPS as soon as modal opens in GPS mode
+  useEffect(() => {
+    if (isOpen && locationMode === 'gps' && !autoGpsAttemptedRef.current) {
+      autoGpsAttemptedRef.current = true;
+      acquireDeviceGps();
+    }
+    if (!isOpen) {
+      autoGpsAttemptedRef.current = false;
+    }
+  }, [isOpen, locationMode, acquireDeviceGps]);
 
   // Option 2: Manual Map Pin
   const handleSelectManual = () => {
@@ -471,7 +514,33 @@ export default function NewReportModal({
             <div className="grid grid-cols-3 gap-1.5 p-1 bg-white rounded-xl border border-slate-200 text-[11px] font-bold">
               <button
                 type="button"
-                onClick={handleSelectDeviceGps}
+                onClick={acquireDeviceGps}
+                className={`py-2 px-1 rounded-lg transition-all text-center flex flex-col items-center gap-0.5 ${
+                  locationMode === 'gps'
+                    ? 'bg-sky-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                <span>1. Device GPS</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSelectManual}
+                className={`py-2 px-1 rounded-lg transition-all text-center flex flex-col items-center gap-0.5 ${
+                  locationMode === 'manual'
+                    ? 'bg-sky-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                <span>2. Map Point</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={acquireDeviceGps}
                 className={`py-2 px-1 rounded-lg transition-all text-center flex flex-col items-center gap-0.5 ${
                   locationMode === 'gps'
                     ? 'bg-sky-600 text-white shadow-sm'
@@ -511,18 +580,80 @@ export default function NewReportModal({
 
             {/* Option Details / Status */}
             {locationMode === 'gps' && (
-              <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 text-xs">
-                <span className="text-slate-600">
-                  {isLocating ? 'Acquiring GPS fix...' : 'Using device GPS sensor'}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleSelectDeviceGps}
-                  disabled={isLocating}
-                  className="px-2 py-1 bg-sky-100 hover:bg-sky-200 text-sky-700 font-semibold rounded-lg text-[11px]"
-                >
-                  {isLocating ? 'Locating...' : 'Refresh GPS'}
-                </button>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 text-xs">
+                  <div className="flex items-center gap-2">
+                    {isLocating ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-sky-600 shrink-0" />
+                    ) : gpsStatus === 'locked' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <Navigation className="w-4 h-4 text-slate-400 shrink-0" />
+                    )}
+                    <div>
+                      <span className="font-bold text-slate-800 block">
+                        {isLocating
+                          ? 'Acquiring Device GPS...'
+                          : gpsStatus === 'locked'
+                          ? `GPS Locked: ${coords.lat}, ${coords.lng}`
+                          : 'Auto Device GPS'}
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        {isLocating
+                          ? 'Reading hardware satellite / network fix...'
+                          : gpsStatus === 'locked'
+                          ? `Live sensor fix (±${gpsAccuracy || 10}m accuracy)`
+                          : 'Click Refresh to lock device coordinates'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={acquireDeviceGps}
+                    disabled={isLocating}
+                    className="px-2.5 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-semibold rounded-lg text-[11px] flex items-center gap-1 active:scale-95 transition-all shrink-0"
+                  >
+                    {isLocating ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isLocating ? 'Locating...' : 'Refresh GPS'}</span>
+                  </button>
+                </div>
+
+                {/* Instant 1-tap Rabat Presets for convenience */}
+                <div className="bg-slate-100/80 p-2.5 rounded-xl text-[11px] space-y-1.5">
+                  <span className="text-slate-500 font-bold uppercase tracking-wider block text-[10px]">
+                    Quick Rabat Location Presets:
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { name: 'Agdal', lat: 34.0085, lng: -6.8495, addr: 'Avenue Fal Ould Oumeir, Agdal, Rabat' },
+                      { name: 'Hassan', lat: 34.0215, lng: -6.8295, addr: 'Avenue Tour Hassan, Hassan, Rabat' },
+                      { name: 'Médina', lat: 34.0285, lng: -6.8375, addr: 'Bab El Had, Médina, Rabat' },
+                      { name: 'Hay Riad', lat: 33.9685, lng: -6.8725, addr: 'Avenue Annakhil, Hay Riad, Rabat' },
+                      { name: 'Technopolis (UM6P)', lat: 33.9895, lng: -6.7295, addr: 'Technopolis, UM6P Campus' },
+                    ].map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => {
+                          setCoords({ lat: preset.lat, lng: preset.lng });
+                          setAddress(preset.addr);
+                          setGpsStatus('locked');
+                          setGpsAccuracy(5);
+                          setLocationSource('gps');
+                          setErrorMessage(null);
+                        }}
+                        className="px-2 py-1 bg-white hover:bg-sky-50 hover:text-sky-700 text-slate-700 font-semibold rounded-lg border border-slate-200 shadow-xs transition-all active:scale-95"
+                      >
+                        📍 {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -583,7 +714,7 @@ export default function NewReportModal({
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Submit Problem to Map</span>
+              <span>Submit Problem to Map ({coords.lat}, {coords.lng})</span>
             </button>
           </div>
         </form>
